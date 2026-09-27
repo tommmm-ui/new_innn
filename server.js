@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// 引入健管與學員路由檔案
+import healthRoutes from './routes/healthRoutes.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '.env.local') });
@@ -21,10 +24,12 @@ const supabaseKey = sanitize(process.env.SUPABASE_KEY || process.env.SUPABASE_PU
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// 根目錄測試
 app.get('/', (req, res) => {
   res.json({ status: "API 運作正常" });
 });
 
+// 舊的 Todos 測試路由
 app.get('/api/todos', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -40,6 +45,9 @@ app.get('/api/todos', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// 掛載健管與學員路由（基礎前綴：/api）
+app.use('/api', healthRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
