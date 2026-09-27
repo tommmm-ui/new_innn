@@ -50,6 +50,16 @@ async function authenticateCoach(req, res, next) {
 }
 
 // ------------------------------------------------------------------
+// 0. 提供前端動態取得 Supabase 初始化設定 (GET /api/config)
+// ------------------------------------------------------------------
+router.get('/config', (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseAnonKey: process.env.SUPABASE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY
+  });
+});
+
+// ------------------------------------------------------------------
 // 1. 公開 Endpoint：45 天健管日程查詢 (需輸入密碼 168168)
 // ------------------------------------------------------------------
 router.get('/schedule', (req, res) => {

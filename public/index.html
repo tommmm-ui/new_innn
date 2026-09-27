@@ -221,8 +221,8 @@
     
     <!-- 頂部切換頁籤 (Segmented Control) -->
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('schedule-view')">45天日程查詢</button>
-      <button class="tab-btn" onclick="switchTab('coach-view')">教練管理後台</button>
+      <button class="tab-btn active" onclick="switchTab('schedule-view', this)">45天日程查詢</button>
+      <button class="tab-btn" onclick="switchTab('coach-view', this)">教練管理後台</button>
     </div>
 
     <!-- ================= 頁籤 1: 45 天日程查詢 ================= -->
@@ -334,29 +334,37 @@
   </div>
 
   <script>
-    // -------------------------------------------------------------
-    // Supabase 初始化設定 (請確認 Supabase anon key 是否有填寫)
-    // -------------------------------------------------------------
-    const SUPABASE_URL = 'https://ouyxgbhvhcmgxtayvjns.supabase.co';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // 請填入專案的 Supabase anon key
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let supabaseClient;
 
-    // 頁面載入時自動檢查登入狀態
-    window.addEventListener('DOMContentLoaded', async () => {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) {
-        showDashboard(session);
+    // 動態初始化 Supabase
+    async function initApp() {
+      try {
+        const configRes = await fetch('/api/config');
+        const config = await configRes.json();
+        
+        supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+          showDashboard(session);
+        }
+      } catch (err) {
+        console.error('初始化失敗：', err);
       }
-    });
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
 
     // 頁籤切換邏輯
-    function switchTab(tabId) {
+    function switchTab(tabId, btnElement) {
       document.getElementById('schedule-view').classList.add('hidden');
       document.getElementById('coach-view').classList.add('hidden');
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
 
       document.getElementById(tabId).classList.remove('hidden');
-      event.target.classList.add('active');
+      if (btnElement) {
+        btnElement.classList.add('active');
+      }
     }
 
     // 延後準備日控制
@@ -416,6 +424,7 @@
 
     // 2. Google 登入與教練管理
     async function loginWithGoogle() {
+      if (!supabaseClient) return alert('系統初始化中，請稍後再試');
       const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -426,6 +435,7 @@
     }
 
     async function logout() {
+      if (!supabaseClient) return;
       await supabaseClient.auth.signOut();
       window.location.reload();
     }
@@ -469,6 +479,7 @@
     // 新增學員 Form 提交
     document.getElementById('add-student-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!supabaseClient) return;
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) return alert('登入狀態已過期，請重新登入');
 
