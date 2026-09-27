@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>健管系統 | 教練管理後台</title>
+  <title>健管系統 | 全方位管理與查詢</title>
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --bg-color: #f5f5f7;
-      --card-bg: rgba(255, 255, 255, 0.8);
+      --card-bg: rgba(255, 255, 255, 0.85);
       --primary-color: #0071e3;
       --text-main: #1d1d1f;
       --text-sub: #86868b;
       --border-color: rgba(0, 0, 0, 0.1);
-      --radius: 18px;
+      --radius: 20px;
     }
 
     * {
@@ -28,7 +28,7 @@
       background-color: var(--bg-color);
       color: var(--text-main);
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
       min-height: 100vh;
       padding: 20px;
@@ -36,7 +36,37 @@
 
     .container {
       width: 100%;
-      max-width: 800px;
+      max-width: 720px;
+    }
+
+    /* Apple Segmented Control 分頁列 */
+    .tab-bar {
+      display: flex;
+      background: rgba(120, 120, 128, 0.12);
+      border-radius: 980px;
+      padding: 4px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 980px;
+      background: transparent;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tab-btn.active {
+      background: #ffffff;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+      font-weight: 600;
     }
 
     /* Apple 玻璃質感卡片 */
@@ -47,22 +77,51 @@
       border-radius: var(--radius);
       border: 1px solid var(--border-color);
       padding: 32px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
       margin-bottom: 24px;
       transition: all 0.3s ease;
     }
 
     h1 {
-      font-size: 28px;
+      font-size: 26px;
       font-weight: 600;
       letter-spacing: -0.5px;
       margin-bottom: 8px;
+      text-align: center;
     }
 
     p.subtitle {
       color: var(--text-sub);
-      font-size: 15px;
+      font-size: 14px;
       margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.7);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary-color);
     }
 
     /* 按鈕樣式 */
@@ -81,6 +140,7 @@
       gap: 10px;
       transition: all 0.2s ease;
       width: 100%;
+      margin-top: 8px;
     }
 
     .btn-apple:hover {
@@ -94,32 +154,41 @@
       border: 1px solid var(--border-color);
     }
 
-    /* 表單元件 */
-    .form-group {
-      margin-bottom: 16px;
+    /* 日程卡片 */
+    .schedule-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
     }
 
-    label {
-      display: block;
-      font-size: 13px;
-      color: var(--text-sub);
-      margin-bottom: 6px;
-      font-weight: 500;
+    .day-card {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 14px;
+      padding: 16px 20px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    input, select {
-      width: 100%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-      background: rgba(255, 255, 255, 0.6);
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.2s ease;
+    .day-card.today {
+      border: 2px solid var(--primary-color);
+      background: rgba(0, 113, 227, 0.04);
     }
 
-    input:focus, select:focus {
-      border-color: var(--primary-color);
+    .day-type {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .badge-today {
+      background: var(--primary-color);
+      color: white;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 980px;
+      margin-left: 6px;
     }
 
     /* 學員卡片 */
@@ -144,71 +213,120 @@
       align-items: center;
       margin-bottom: 24px;
     }
-
-    .user-info {
-      font-size: 14px;
-      color: var(--text-sub);
-    }
   </style>
 </head>
 <body>
 
   <div class="container">
     
-    <!-- 1. 登入視窗 -->
-    <div id="login-section" class="apple-card" style="text-align: center;">
-      <h1>健管教練系統</h1>
-      <p class="subtitle">請使用教練 Google 帳號授權登入</p>
-      
-      <button class="btn-apple" onclick="loginWithGoogle()">
-        <svg width="18" height="18" viewBox="0 0 24 24">
-          <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-          <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-          <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-        </svg>
-        使用 Google 帳號登入
-      </button>
+    <!-- 頂部切換頁籤 (Segmented Control) -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('schedule-view')">45天日程查詢</button>
+      <button class="tab-btn" onclick="switchTab('coach-view')">教練管理後台</button>
     </div>
 
-    <!-- 2. 教練主控台 (登入後顯示) -->
-    <div id="dashboard-section" class="hidden">
-      
-      <!-- 頂部資訊列 -->
-      <div class="apple-card header-bar">
-        <div>
-          <h1>教練管理後台</h1>
-          <div class="user-info" id="user-email">載入中...</div>
-        </div>
-        <button class="btn-apple btn-outline" style="width: auto;" onclick="logout()">登出</button>
-      </div>
-
-      <!-- 新增學員卡片 -->
+    <!-- ================= 頁籤 1: 45 天日程查詢 ================= -->
+    <div id="schedule-view">
       <div class="apple-card">
-        <h2 style="font-size: 20px; margin-bottom: 16px;">新增學員</h2>
-        <form id="add-student-form">
+        <h1>健管日程查詢</h1>
+        <p class="subtitle">輸入專屬密碼與開始日期，即刻獲取個人每日型態</p>
+
+        <form id="search-form">
           <div class="form-group">
-            <label>學員姓名</label>
-            <input type="text" id="student-name" placeholder="例如：王小明" required>
+            <label>查詢密碼</label>
+            <input type="password" id="password" placeholder="請輸入查詢密碼" required value="168168">
           </div>
-          <div class="form-group">
-            <label>身高 (cm)</label>
-            <input type="number" id="student-height" placeholder="例如：175">
-          </div>
+
           <div class="form-group">
             <label>開始執行日期 (數值表第一週日期)</label>
-            <input type="date" id="student-start-date" required>
+            <input type="date" id="startDate" required>
           </div>
-          <button type="submit" class="btn-apple">建立學員檔案</button>
+
+          <div class="form-group">
+            <label>準備日模式</label>
+            <select id="prepMode" onchange="togglePrepDateInput()">
+              <option value="default">預設（緊接在數值表日之後）</option>
+              <option value="skip">跳過準備日（直接進入蛋白日）</option>
+              <option value="delay">延後準備日（自行指定日期）</option>
+            </select>
+          </div>
+
+          <div class="form-group hidden" id="customPrepGroup">
+            <label>開始準備日日期</label>
+            <input type="date" id="customPrepStartDate">
+          </div>
+
+          <button type="submit" class="btn-apple">即刻查詢日程</button>
         </form>
       </div>
 
-      <!-- 學員清單卡片 -->
-      <div class="apple-card">
-        <h2 style="font-size: 20px; margin-bottom: 16px;">您的學員列表</h2>
-        <div id="student-list">
-          <p style="color: var(--text-sub);">正在載入學員資料...</p>
+      <!-- 查詢結果區域 -->
+      <div id="result-container" class="hidden">
+        <div class="apple-card">
+          <h2 style="font-size: 18px; margin-bottom: 16px;">未來 6 天日程預覽</h2>
+          <div class="schedule-grid" id="schedule-list"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ================= 頁籤 2: 教練管理後台 ================= -->
+    <div id="coach-view" class="hidden">
+      
+      <!-- 2-1. 未登入：顯示登入卡片 -->
+      <div id="login-section" class="apple-card" style="text-align: center;">
+        <h1>教練專屬後台</h1>
+        <p class="subtitle">請使用授權的 Google 帳號登入系統</p>
+        
+        <button class="btn-apple" onclick="loginWithGoogle()">
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          使用 Google 帳號登入
+        </button>
+      </div>
+
+      <!-- 2-2. 已登入：顯示管理主控台 -->
+      <div id="dashboard-section" class="hidden">
+        
+        <div class="apple-card header-bar">
+          <div>
+            <h1 style="text-align: left; font-size: 22px;">教練管理主控台</h1>
+            <div id="user-email" style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">已登入</div>
+          </div>
+          <button class="btn-apple btn-outline" style="width: auto; margin: 0; padding: 8px 16px; font-size: 13px;" onclick="logout()">登出</button>
+        </div>
+
+        <!-- 新增學員卡片 -->
+        <div class="apple-card">
+          <h2 style="font-size: 18px; margin-bottom: 16px;">新增學員檔案</h2>
+          <form id="add-student-form">
+            <div class="form-group">
+              <label>學員姓名</label>
+              <input type="text" id="student-name" placeholder="例如：王小明" required>
+            </div>
+            <div class="form-group">
+              <label>身高 (cm)</label>
+              <input type="number" id="student-height" placeholder="例如：175">
+            </div>
+            <div class="form-group">
+              <label>開始執行日期 (數值表第一週日期)</label>
+              <input type="date" id="student-start-date" required>
+            </div>
+            <button type="submit" class="btn-apple">建立學員資料</button>
+          </form>
+        </div>
+
+        <!-- 學員列表卡片 -->
+        <div class="apple-card">
+          <h2 style="font-size: 18px; margin-bottom: 16px;">您的學員清單</h2>
+          <div id="student-list">
+            <p style="color: var(--text-sub); font-size: 14px;">資料載入中...</p>
+          </div>
+        </div>
+
       </div>
 
     </div>
@@ -216,12 +334,14 @@
   </div>
 
   <script>
-    // 初始化 Supabase Client（請確認此處填寫你的 Supabase 專案資訊）
+    // -------------------------------------------------------------
+    // Supabase 初始化設定 (請確認 Supabase anon key 是否有填寫)
+    // -------------------------------------------------------------
     const SUPABASE_URL = 'https://ouyxgbhvhcmgxtayvjns.supabase.co';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // 請填入你的 Supabase anon key
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // 請填入專案的 Supabase anon key
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // 頁面載入時檢查登入狀態
+    // 頁面載入時自動檢查登入狀態
     window.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session) {
@@ -229,7 +349,72 @@
       }
     });
 
-    // Google 登入
+    // 頁籤切換邏輯
+    function switchTab(tabId) {
+      document.getElementById('schedule-view').classList.add('hidden');
+      document.getElementById('coach-view').classList.add('hidden');
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+      document.getElementById(tabId).classList.remove('hidden');
+      event.target.classList.add('active');
+    }
+
+    // 延後準備日控制
+    function togglePrepDateInput() {
+      const mode = document.getElementById('prepMode').value;
+      const customGroup = document.getElementById('customPrepGroup');
+      if (mode === 'delay') {
+        customGroup.classList.remove('hidden');
+      } else {
+        customGroup.classList.add('hidden');
+      }
+    }
+
+    // 1. 日程查詢 Form 提交
+    document.getElementById('search-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const password = document.getElementById('password').value;
+      const startDate = document.getElementById('startDate').value;
+      const prepMode = document.getElementById('prepMode').value;
+      const customPrepStartDate = document.getElementById('customPrepStartDate').value;
+
+      let url = `/api/schedule?password=${encodeURIComponent(password)}&startDate=${startDate}&prepMode=${prepMode}`;
+      if (prepMode === 'delay' && customPrepStartDate) {
+        url += `&customPrepStartDate=${customPrepStartDate}`;
+      }
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.success) {
+          const list = document.getElementById('schedule-list');
+          list.innerHTML = data.schedule.map(item => `
+            <div class="day-card ${item.isToday ? 'today' : ''}">
+              <div>
+                <div style="font-size: 13px; color: var(--text-sub);">
+                  ${item.date} 
+                  ${item.isToday ? '<span class="badge-today">今天</span>' : ''}
+                </div>
+                <div style="font-size: 14px; font-weight: 500; margin-top: 2px;">
+                  ${item.planDay} (${item.week})
+                </div>
+              </div>
+              <div class="day-type">${item.dayType}</div>
+            </div>
+          `).join('');
+
+          document.getElementById('result-container').classList.remove('hidden');
+        } else {
+          alert('查詢失敗：' + data.error);
+        }
+      } catch (err) {
+        alert('連線失敗，請檢查網路狀態');
+      }
+    });
+
+    // 2. Google 登入與教練管理
     async function loginWithGoogle() {
       const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
@@ -240,29 +425,23 @@
       if (error) alert('登入失敗：' + error.message);
     }
 
-    // 登出
     async function logout() {
       await supabaseClient.auth.signOut();
       window.location.reload();
     }
 
-    // 顯示主控台
     async function showDashboard(session) {
       document.getElementById('login-section').classList.add('hidden');
       document.getElementById('dashboard-section').classList.remove('hidden');
       document.getElementById('user-email').innerText = `已登入：${session.user.email}`;
 
-      // 載入學員清單
       loadStudents(session.access_token);
     }
 
-    // 呼叫 API 載入學員
     async function loadStudents(token) {
       try {
         const response = await fetch('/api/students', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         const result = await response.json();
 
@@ -271,27 +450,27 @@
           listContainer.innerHTML = result.students.map(s => `
             <div class="student-item">
               <div>
-                <strong style="font-size: 17px;">${s.name}</strong>
+                <strong style="font-size: 16px;">${s.name}</strong>
                 <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">
                   身高: ${s.height || '未填'} cm | 開始日: ${s.start_date}
                 </div>
               </div>
-              <button class="btn-apple btn-outline" style="width: auto; padding: 8px 16px; font-size: 13px;">查看紀錄</button>
+              <button class="btn-apple btn-outline" style="width: auto; padding: 6px 14px; font-size: 12px; margin:0;">管理</button>
             </div>
           `).join('');
         } else {
-          listContainer.innerHTML = '<p style="color: var(--text-sub);">目前尚無學員資料，請新增學員。</p>';
+          listContainer.innerHTML = '<p style="color: var(--text-sub); font-size: 14px;">目前尚無學員資料，請新增學員。</p>';
         }
       } catch (err) {
         console.error(err);
       }
     }
 
-    // 監聽新增學員表單提交
+    // 新增學員 Form 提交
     document.getElementById('add-student-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) return alert('登入已過期');
+      if (!session) return alert('登入狀態已過期，請重新登入');
 
       const name = document.getElementById('student-name').value;
       const height = document.getElementById('student-height').value;
