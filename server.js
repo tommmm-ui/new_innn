@@ -15,6 +15,8 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') });
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// 靜態檔案託管：自動將 public/index.html 作為首頁渲染
 app.use(express.static('public'));
 
 const sanitize = (str) => (str ? str.replace(/[^\x00-\x7F]/g, '').trim() : '');
@@ -23,11 +25,6 @@ const supabaseUrl = sanitize(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC
 const supabaseKey = sanitize(process.env.SUPABASE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_SECRET_KEY);
 
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// 根目錄測試
-app.get('/', (req, res) => {
-  res.json({ status: "API 運作正常" });
-});
 
 // 舊的 Todos 測試路由
 app.get('/api/todos', async (req, res) => {
