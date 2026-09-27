@@ -25,7 +25,33 @@ function parseDateOnly(dateString) {
   return new Date(year, month - 1, day);
 }
 
-// 1. 45 天健管日程查詢 (GET /api/schedule) - 已加入密碼保護 (密碼: 168168)
+/**
+ * 🔒 教練權限驗證中間件 (Middleware)
+ * 檢查請求 Header 是否帶有有效的 Bearer Token (Supabase Access Token)
+ */
+async function authenticateCoach(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: '未提供驗證 Token，請先登入教練帳號' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  // 向 Supabase 驗證 Token 是否為有效登入用戶
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+
+  if (error || !user) {
+    return res.status(401).json({ error: 'Token 無效或已過期，請重新登入' });
+  }
+
+  // 將驗證通過的教練資訊附帶在 req 物件上
+  req.coach = user;
+  next();
+}
+
+// ------------------------------------------------------------------
+// 1. 公開 Endpoint：45 天健管日程查詢 (需輸入密碼 168168)
+// ------------------------------------------------------------------
 router.get('/schedule', (req, res) => {
   const { startDate, prepMode, customPrepStartDate, password } = req.query;
 
@@ -96,8 +122,24 @@ router.get('/schedule', (req, res) => {
   res.json({ success: true, schedule: result });
 });
 
-// 2. 新增學員資料 (POST /api/students)
-router.post('/students', async (req, res) => {
+// ------------------------------------------------------------------
+// 2. 🔒 私密 Endpoint：僅限登入教練存取與管理學員資料
+// ------------------------------------------------------------------
+
+// 2-1. 查詢該教練的所有學員列表 (GET /api/students)
+router.get('/students', authenticateCoach, async (req, res) => {
+  const { data, error } = await supabase
+    .from('students')
+    .select('*, weekly_logs(*)')
+    .eq('coach_id', req.coach.id) // 僅抓取該教練自己的學員
+    .order('created_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, students: data });
+});
+
+// 2-2. 新增學員資料 (POST /api/students)
+router.post('/students', authenticateCoach, async (req, res) => {
   const { name, height, startDate, prepMode, customPrepStartDate } = req.body;
 
   if (!name || !startDate) {
@@ -111,7 +153,8 @@ router.post('/students', async (req, res) => {
       height,
       start_date: startDate,
       prep_mode: prepMode || 'default',
-      custom_prep_start_date: customPrepStartDate || null
+      custom_prep_start_date: customPrepStartDate || null,
+      coach_id: req.coach.id // 自動帶入目前登入教練的 ID
     }])
     .select();
 
@@ -119,8 +162,8 @@ router.post('/students', async (req, res) => {
   res.json({ success: true, student: data[0] });
 });
 
-// 3. 新增/更新學員每週狀態 (POST /api/students/:id/weekly-log)
-router.post('/students/:id/weekly-log', async (req, res) => {
+// 2-3. 新增/更新學員每週狀態 (POST /api/students/:id/weekly-log)
+router.post('/students/:id/weekly-log', authenticateCoach, async (req, res) => {
   const { id } = req.params;
   const { weekNumber, photoUrl, note } = req.body;
 
@@ -142,8 +185,8 @@ router.post('/students/:id/weekly-log', async (req, res) => {
   res.json({ success: true, log: data[0] });
 });
 
-// 4. 查詢學員及其所有週報 (GET /api/students/:id)
-router.get('/students/:id', async (req, res) => {
+// 2-4. 查詢單一學員詳細資料及其週報 (GET /api/students/:id)
+router.get('/students/:id', authenticateCoach, async (req, res) => {
   const { id } = req.params;
 
   const { data: student, error } = await supabase
@@ -154,6 +197,11 @@ router.get('/students/:id', async (req, res) => {
 
   if (error || !student) {
     return res.status(404).json({ error: '找不到該學員' });
+  }
+
+  // 檢查是否為該教練的學員
+  if (student.coach_id && student.coach_id !== req.coach.id) {
+    return res.status(403).json({ error: '權限不足，您無法查看其他教練的學員資料' });
   }
 
   res.json({ success: true, student });
