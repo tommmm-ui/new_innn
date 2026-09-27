@@ -25,9 +25,14 @@ function parseDateOnly(dateString) {
   return new Date(year, month - 1, day);
 }
 
-// 1. 45 天健管日程計算 (GET /api/schedule)
+// 1. 45 天健管日程查詢 (GET /api/schedule) - 已加入密碼保護 (密碼: 168168)
 router.get('/schedule', (req, res) => {
-  const { startDate, prepMode, customPrepStartDate } = req.query;
+  const { startDate, prepMode, customPrepStartDate, password } = req.query;
+
+  // 驗證密碼
+  if (password !== '168168') {
+    return res.status(401).json({ error: '密碼錯誤或未輸入密碼，無法查詢日程' });
+  }
 
   if (!startDate) {
     return res.status(400).json({ error: '請輸入開始執行日期（備註：開始日為數值表第一週的日期）' });
