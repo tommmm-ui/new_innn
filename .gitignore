@@ -1,0 +1,14 @@
+# 依賴套件
+node_modules/
+
+# 環境變數與敏感金鑰檔
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 系統產生的快取與日誌
+*.log
+.DS_Store
+mmaaa
