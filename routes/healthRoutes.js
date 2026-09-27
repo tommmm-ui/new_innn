@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import { createClient } from '@supabase/supabase-js';
+
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
 
 const sanitize = (str) => (str ? str.replace(/[^\x00-\x7F]/g, '').trim() : '');
 const supabaseUrl = sanitize(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL);
