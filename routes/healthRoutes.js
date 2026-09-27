@@ -153,4 +153,4 @@ router.get('/students/:id', async (req, res) => {
   res.json({ success: true, student });
 });
 
-module.exports = router;
+export default router;

@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// 引入健管與學員路由檔案
+// 引入健管與學員路由（ES Modules 必須加上 .js 副檔名）
 import healthRoutes from './routes/healthRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -46,7 +46,7 @@ app.get('/api/todos', async (req, res) => {
   }
 });
 
-// 掛載健管與學員路由（基礎前綴：/api）
+// 掛載健管與學員路由（將 /schedule, /students 等掛載至 /api 前綴下）
 app.use('/api', healthRoutes);
 
 const PORT = process.env.PORT || 3000;
