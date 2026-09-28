@@ -234,7 +234,8 @@
         <form id="search-form">
           <div class="form-group">
             <label>查詢密碼</label>
-            <input type="password" id="password" placeholder="請輸入查詢密碼" required value="168168">
+            <!-- 已清空 value 並加上 autocomplete="new-password" 防範瀏覽器自動帶入 -->
+            <input type="password" id="password" placeholder="請輸入查詢密碼" autocomplete="new-password" required>
           </div>
 
           <div class="form-group">
