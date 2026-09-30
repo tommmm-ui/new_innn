@@ -7,9 +7,11 @@
   <title>健管系統 | 全方位管理與查詢</title>
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 🌟 煙火特效 SDK (Canvas Confetti) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <!-- Modal 彈窗樣式 -->
   <link rel="stylesheet" href="/modal.css">
-  <!-- 🌟 引入群組選單 CSS 樣式 -->
+  <!-- 引入群組選單 CSS 樣式 -->
   <link rel="stylesheet" href="/groupMenu.css">
   <style>
     :root {
@@ -162,6 +164,27 @@
       background-color: transparent;
       color: var(--text-main);
       border: 1px solid var(--border-color);
+    }
+
+    /* 圓形星星按鈕 */
+    .btn-star {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border-color);
+      background: #ffffff;
+      color: #ff9500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-star:hover {
+      background: #fff8ee;
+      transform: scale(1.05);
     }
 
     /* 日程卡片 */
@@ -341,7 +364,7 @@
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
             <h2 style="font-size: 18px; margin: 0;">您的學員清單</h2>
 
-            <!-- 群組切換列 (預設 + 自訂選單) -->
+            <!-- 群組切換列 -->
             <div id="group-tabs-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <!-- 動態渲染群組按鈕 -->
             </div>
@@ -358,6 +381,33 @@
 
   </div>
 
+  <!-- ================= 🌟 星星(★) 學員群組與結業設定 Modal ================= -->
+  <div id="star-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 420px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 id="star-student-name" style="font-size: 20px; font-weight: 600;">學員群組設定</h2>
+        <button onclick="closeStarModal()"
+          style="background:none; border:none; font-size: 22px; cursor:pointer; color: var(--text-sub);">✕</button>
+      </div>
+
+      <!-- 1. 自訂群組加入區塊 -->
+      <div style="margin-bottom: 24px;">
+        <label
+          style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 10px; display: block;">加入自訂群組：</label>
+        <div id="star-group-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- 動態渲染自訂群組列表 -->
+        </div>
+      </div>
+
+      <!-- 2. 學員結業按鈕 -->
+      <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+        <button type="button" class="btn-apple" style="background: #34c759;" onclick="markStudentGraduated()">
+          🎓 學員結業囉
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= 🌟 歷史備註管理 Modal 彈窗骨架 ================= -->
   <div id="notes-modal" class="modal-overlay hidden">
     <div class="modal-content">
@@ -367,13 +417,13 @@
           style="background:none; border:none; font-size: 22px; cursor:pointer; color: var(--text-sub);">✕</button>
       </div>
 
-      <!-- 歷史備註列表 (依時間越早由上而下排序) -->
+      <!-- 歷史備註列表 -->
       <div id="notes-list" style="max-height: 280px; overflow-y: auto; margin-bottom: 16px;"></div>
 
-      <!-- 新增紀錄按鈕 (點擊後才跳出輸入框) -->
+      <!-- 新增紀錄按鈕 -->
       <button id="btn-show-add-form" class="btn-apple" onclick="showNoteForm()">＋ 新增備註紀錄</button>
 
-      <!-- 備註輸入框 (預設隱藏) -->
+      <!-- 備註輸入框 -->
       <form id="note-form" class="hidden" style="margin-top: 16px; border-top: 1px solid #e5e5ea; padding-top: 16px;">
         <h3 id="form-title" style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">新增紀錄</h3>
         <input type="hidden" id="note-id">
@@ -423,12 +473,18 @@
     let supabaseClient;
     let currentStudentId = null;
     let currentNotesCache = [];
+    let allStudentsCache = []; // 快取所有學員資料
 
-    // 📌 群組控制變數
+    // 📌 群組與狀態儲存
     const defaultGroups = ['執行中', '已結業'];
     let customGroups = JSON.parse(localStorage.getItem('custom_student_groups') || '[]');
     let currentActiveGroup = '執行中';
-    let openMenuIndex = null; // 當前打開的 CSS 選單索引
+    let openMenuIndex = null;
+
+    // 本地存取學員與群組的綁定關係，格式：{ studentId: ["666"] }
+    let studentGroupMap = JSON.parse(localStorage.getItem('student_group_mapping') || '{}');
+    // 本地存取學員結業狀態，格式：{ studentId: "graduated" } (預設皆為 "active")
+    let studentStatusMap = JSON.parse(localStorage.getItem('student_status_mapping') || '{}');
 
     // 動態初始化 Supabase
     async function initApp() {
@@ -451,7 +507,6 @@
       initApp();
       renderGroupTabs();
 
-      // 點擊頁面其他空白處時自動閉合 CSS 選單
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.group-tab-wrapper')) {
           if (openMenuIndex !== null) {
@@ -474,7 +529,6 @@
       }
     }
 
-    // 延後準備日控制
     function togglePrepDateInput() {
       const mode = document.getElementById('prepMode').value;
       const customGroup = document.getElementById('customPrepGroup');
@@ -495,7 +549,6 @@
       const canAddMore = customGroups.length < 3;
       let html = '';
 
-      // 1. 預設群組 (執行中, 已結業)
       defaultGroups.forEach(group => {
         const isActive = currentActiveGroup === group;
         html += `
@@ -520,7 +573,6 @@
         `;
       });
 
-      // 2. 自訂群組 (搭配 CSS 下拉選單)
       customGroups.forEach((group, idx) => {
         const isActive = currentActiveGroup === group;
         const isMenuOpen = openMenuIndex === idx;
@@ -546,7 +598,6 @@
               </button>
             </div>
 
-            <!-- CSS 動態浮動下拉選單 -->
             ${isMenuOpen ? `
               <div class="group-dropdown-menu">
                 <button type="button" class="group-dropdown-item" onclick="renameGroup(${idx})">1. 重新命名</button>
@@ -557,7 +608,6 @@
         `;
       });
 
-      // 3. ＋ 新增按鈕
       if (canAddMore) {
         html += `
           <button 
@@ -584,14 +634,12 @@
       container.innerHTML = html;
     }
 
-    // 開啟/關閉選單
     function toggleGroupMenu(event, index) {
       event.stopPropagation();
       openMenuIndex = openMenuIndex === index ? null : index;
       renderGroupTabs();
     }
 
-    // 切換當前選取的群組
     function switchStudentGroup(groupName) {
       currentActiveGroup = groupName;
       openMenuIndex = null;
@@ -604,7 +652,6 @@
       }
     }
 
-    // 1. 重新命名群組
     function renameGroup(index) {
       const oldName = customGroups[index];
       const newName = prompt('請輸入新的群組名稱：', oldName);
@@ -622,6 +669,12 @@
         return;
       }
 
+      // 更新 mapping 中的群組名稱
+      Object.keys(studentGroupMap).forEach(sId => {
+        studentGroupMap[sId] = studentGroupMap[sId].map(g => g === oldName ? trimmedName : g);
+      });
+      localStorage.setItem('student_group_mapping', JSON.stringify(studentGroupMap));
+
       customGroups[index] = trimmedName;
       if (currentActiveGroup === oldName) {
         currentActiveGroup = trimmedName;
@@ -631,7 +684,6 @@
       renderGroupTabs();
     }
 
-    // 2. 刪除群組 (二次確認視窗)
     function confirmDeleteGroup(index) {
       const groupName = customGroups[index];
       const isConfirmed = confirm(`是否確認刪除「${groupName}」這個群組？`);
@@ -655,7 +707,6 @@
       }
     }
 
-    // 新增自訂群組
     function addNewGroupPrompt() {
       if (customGroups.length >= 3) {
         alert('自訂群組已達 3 個上限！');
@@ -683,6 +734,130 @@
       currentActiveGroup = trimmedName;
       openMenuIndex = null;
       renderGroupTabs();
+    }
+
+    // ------------------------------------------
+    // 📌 星星(★) Modal 與學員結業煙火邏輯
+    // ------------------------------------------
+    function openStarModal(studentId, studentName) {
+      currentStudentId = studentId;
+      document.getElementById('star-student-name').innerText = `${studentName} - 管理`;
+      renderStarModalContent();
+      document.getElementById('star-modal').classList.remove('hidden');
+    }
+
+    function closeStarModal() {
+      document.getElementById('star-modal').classList.add('hidden');
+    }
+
+    function renderStarModalContent() {
+      const container = document.getElementById('star-group-list');
+      if (customGroups.length === 0) {
+        container.innerHTML = '<p style="font-size: 13px; color: var(--text-sub);">尚無自訂群組，可先點擊清單旁的 ＋ 建立。</p>';
+        return;
+      }
+
+      const assignedGroups = studentGroupMap[currentStudentId] || [];
+
+      container.innerHTML = customGroups.map(g => {
+        const isAssigned = assignedGroups.includes(g);
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: #f2f2f7; padding: 10px 14px; border-radius: 12px;">
+            <span style="font-size: 14px; font-weight: 500;">${g}</span>
+            <button 
+              type="button" 
+              onclick="toggleAssignStudentToGroup('${g}')"
+              style="
+                padding: 4px 12px; 
+                border-radius: 980px; 
+                font-size: 12px; 
+                font-weight: 600; 
+                border: none; 
+                cursor: pointer;
+                background: ${isAssigned ? 'rgba(52, 199, 89, 0.15)' : 'var(--primary-color)'};
+                color: ${isAssigned ? '#34c759' : '#ffffff'};
+              "
+            >
+              ${isAssigned ? '✓ 已加入' : '＋ 加入'}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleAssignStudentToGroup(groupName) {
+      if (!studentGroupMap[currentStudentId]) {
+        studentGroupMap[currentStudentId] = [];
+      }
+
+      const idx = studentGroupMap[currentStudentId].indexOf(groupName);
+      if (idx > -1) {
+        studentGroupMap[currentStudentId].splice(idx, 1);
+      } else {
+        studentGroupMap[currentStudentId].push(groupName);
+      }
+
+      localStorage.setItem('student_group_mapping', JSON.stringify(studentGroupMap));
+      renderStarModalContent();
+
+      // 重新加載清單
+      if (supabaseClient) {
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+          if (session) loadStudents(session.access_token);
+        });
+      }
+    }
+
+    // 🎓 觸發結業動畫與移至已結業群組
+    function markStudentGraduated() {
+      const isConfirmed = confirm('確定該學員要結業嗎？');
+      if (!isConfirmed) return;
+
+      // 1. 設定學員狀態為 "graduated"
+      studentStatusMap[currentStudentId] = 'graduated';
+      localStorage.setItem('student_status_mapping', JSON.stringify(studentStatusMap));
+
+      closeStarModal();
+
+      // 2. 觸發煙火特效 (Confetti)
+      triggerGraduationFireworks();
+
+      // 3. 跳出慶祝提示框
+      setTimeout(() => {
+        alert('🎉 恭喜教練！恭喜學員順利結業！👏');
+
+        // 自動重新整理當前學員列表
+        if (supabaseClient) {
+          supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (session) loadStudents(session.access_token);
+          });
+        }
+      }, 500);
+    }
+
+    // 🎆 煙火特效函式
+    function triggerGraduationFireworks() {
+      if (typeof confetti !== 'function') return;
+
+      const duration = 3 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+      function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval = setInterval(function () {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+      }, 250);
     }
 
     // 1. 日程查詢 Form 提交
@@ -755,7 +930,7 @@
       loadStudents(session.access_token);
     }
 
-    // 🌟 學員卡片載入
+    // 🌟 載入與篩選學員 (支援動態群組與結業狀態過濾)
     async function loadStudents(token) {
       try {
         const response = await fetch('/api/students', {
@@ -765,26 +940,51 @@
 
         const listContainer = document.getElementById('student-list');
         if (result.success && result.students.length > 0) {
-          listContainer.innerHTML = result.students.map(s => `
-            <div class="student-item">
-              <div>
-                <strong style="font-size: 16px;">${s.name}</strong>
-                <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">
-                  身高: ${s.height || '未填'} cm | 開始日: ${s.start_date}
+          allStudentsCache = result.students;
+
+          // 核心篩選邏輯：
+          const filteredStudents = allStudentsCache.filter(s => {
+            const status = studentStatusMap[s.id] || 'active'; // 預設為 active (執行中)
+            const assignedCustomGroups = studentGroupMap[s.id] || [];
+
+            if (currentActiveGroup === '執行中') {
+              return status === 'active';
+            } else if (currentActiveGroup === '已結業') {
+              return status === 'graduated';
+            } else {
+              // 自訂群組 (例如 666)：當學員屬於該群組時，不論 active 或 graduated 都會在自訂群組看到
+              return assignedCustomGroups.includes(currentActiveGroup);
+            }
+          });
+
+          if (filteredStudents.length > 0) {
+            listContainer.innerHTML = filteredStudents.map(s => `
+              <div class="student-item">
+                <div>
+                  <strong style="font-size: 16px;">${s.name}</strong>
+                  <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">
+                    身高: ${s.height || '未填'} cm | 開始日: ${s.start_date}
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <!-- 🌟 管理旁邊的圓形星星按鈕 -->
+                  <button type="button" class="btn-star" title="群組與狀態管理" onclick="openStarModal('${s.id}', '${s.name}')">★</button>
+                  <button class="btn-apple btn-outline" style="width: auto; padding: 6px 14px; font-size: 12px; margin:0;" onclick="openNotesModal('${s.id}', '${s.name}')">管理</button>
                 </div>
               </div>
-              <button class="btn-apple btn-outline" style="width: auto; padding: 6px 14px; font-size: 12px; margin:0;" onclick="openNotesModal('${s.id}', '${s.name}')">管理</button>
-            </div>
-          `).join('');
+            `).join('');
+          } else {
+            listContainer.innerHTML = `<p style="color: var(--text-sub); font-size: 14px;">目前「${currentActiveGroup}」標籤下尚無學員資料。</p>`;
+          }
         } else {
-          listContainer.innerHTML = `<p style="color: var(--text-sub); font-size: 14px;">目前「${currentActiveGroup}」標籤下尚無學員資料。</p>`;
+          listContainer.innerHTML = `<p style="color: var(--text-sub); font-size: 14px;">目前尚無學員資料，請新增學員。</p>`;
         }
       } catch (err) {
         console.error(err);
       }
     }
 
-    // 新增學員 Form 提交
+    // 新增學員 Form 提交 (預設歸屬執行中)
     document.getElementById('add-student-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!supabaseClient) return;
@@ -806,7 +1006,7 @@
 
       const data = await res.json();
       if (data.success) {
-        alert('學員建立成功！');
+        alert('學員建立成功！已自動加入「執行中」群組。');
         document.getElementById('add-student-form').reset();
         loadStudents(session.access_token);
       } else {
