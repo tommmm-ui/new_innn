@@ -220,6 +220,47 @@
       align-items: center;
       margin-bottom: 24px;
     }
+
+    /* 群組選單彈窗選單樣式 */
+    .group-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 6px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      padding: 6px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      min-width: 110px;
+    }
+
+    .group-dropdown button {
+      background: transparent;
+      border: none;
+      padding: 8px 12px;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 8px;
+      color: var(--text-main);
+      transition: background 0.15s ease;
+    }
+
+    .group-dropdown button:hover {
+      background: #f2f2f7;
+    }
+
+    .group-dropdown button.danger {
+      color: #ff3b30;
+    }
+
+    .group-dropdown button.danger:hover {
+      background: #ffe5e5;
+    }
   </style>
 </head>
 
@@ -338,7 +379,7 @@
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
             <h2 style="font-size: 18px; margin: 0;">您的學員清單</h2>
 
-            <!-- 群組切換列 (預設 + 自訂) -->
+            <!-- 群組切換列 (預設 + 自訂選單) -->
             <div id="group-tabs-container"
               style="display: flex; align-items: center; gap: 6px; overflow-x: auto; max-width: 100%; padding-bottom: 4px;">
               <!-- 動態渲染群組按鈕 -->
@@ -422,10 +463,11 @@
     let currentStudentId = null;
     let currentNotesCache = [];
 
-    // 📌 群組控制變數 (預設「執行中」、「已結業」，至多 3 個自訂群組)
+    // 📌 群組控制變數
     const defaultGroups = ['執行中', '已結業'];
     let customGroups = JSON.parse(localStorage.getItem('custom_student_groups') || '[]');
     let currentActiveGroup = '執行中';
+    let openMenuIndex = null; // 控制目前打開的選單索引
 
     // 動態初始化 Supabase
     async function initApp() {
@@ -447,6 +489,14 @@
     window.addEventListener('DOMContentLoaded', () => {
       initApp();
       renderGroupTabs();
+
+      // 點擊頁面其他地方時，自動關閉選單
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.group-tab-wrapper')) {
+          openMenuIndex = null;
+          renderGroupTabs();
+        }
+      });
     });
 
     // 頁籤切換邏輯
@@ -473,17 +523,20 @@
     }
 
     // ------------------------------------------
-    // 📌 學員群組標籤與新增邏輯
+    // 📌 學員群組標籤與三條線選單邏輯
     // ------------------------------------------
     function renderGroupTabs() {
       const container = document.getElementById('group-tabs-container');
       if (!container) return;
 
-      const allGroups = [...defaultGroups, ...customGroups];
       const canAddMore = customGroups.length < 3;
 
-      container.innerHTML = `
-        ${allGroups.map(group => `
+      let html = '';
+
+      // 1. 渲染預設群組
+      defaultGroups.forEach(group => {
+        const isActive = currentActiveGroup === group;
+        html += `
           <button 
             type="button"
             onclick="switchStudentGroup('${group}')" 
@@ -494,17 +547,77 @@
               font-weight: 500; 
               cursor: pointer; 
               white-space: nowrap;
-              border: 1px solid ${currentActiveGroup === group ? 'var(--primary-color)' : 'rgba(0,0,0,0.15)'};
-              background: ${currentActiveGroup === group ? 'var(--primary-color)' : 'transparent'};
-              color: ${currentActiveGroup === group ? '#ffffff' : 'var(--text-main)'};
+              border: 1px solid ${isActive ? 'var(--primary-color)' : 'rgba(0,0,0,0.15)'};
+              background: ${isActive ? 'var(--primary-color)' : 'transparent'};
+              color: ${isActive ? '#ffffff' : 'var(--text-main)'};
               transition: all 0.2s ease;
             "
           >
             ${group}
           </button>
-        `).join('')}
+        `;
+      });
 
-        ${canAddMore ? `
+      // 2. 渲染可管理的自訂群組 (帶有 ≡ 選單)
+      customGroups.forEach((group, idx) => {
+        const isActive = currentActiveGroup === group;
+        const isMenuOpen = openMenuIndex === idx;
+
+        html += `
+          <div class="group-tab-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+            <div style="
+              display: flex;
+              align-items: center;
+              padding: 3px 6px 3px 12px;
+              border-radius: 980px;
+              border: 1px solid ${isActive ? 'var(--primary-color)' : 'rgba(0,0,0,0.15)'};
+              background: ${isActive ? 'var(--primary-color)' : 'transparent'};
+              color: ${isActive ? '#ffffff' : 'var(--text-main)'};
+              transition: all 0.2s ease;
+            ">
+              <span 
+                onclick="switchStudentGroup('${group}')" 
+                style="font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; margin-right: 4px;"
+              >
+                ${group}
+              </span>
+
+              <!-- 三條橫線 ≡ 選單按鈕 -->
+              <button 
+                type="button"
+                onclick="toggleGroupMenu(event, ${idx})" 
+                title="群組選項"
+                style="
+                  background: transparent;
+                  border: none;
+                  color: ${isActive ? '#ffffff' : 'var(--text-sub)'};
+                  cursor: pointer;
+                  font-size: 12px;
+                  padding: 2px 4px;
+                  border-radius: 4px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                "
+              >
+                ≡
+              </button>
+            </div>
+
+            <!-- 選單浮窗 (點三條橫線出現) -->
+            ${isMenuOpen ? `
+              <div class="group-dropdown">
+                <button type="button" onclick="renameGroup(${idx})">1. 重新命名</button>
+                <button type="button" class="danger" onclick="confirmDeleteGroup(${idx})">2. 刪除該群組</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
+
+      // 3. 渲染 ＋ 新增按鈕
+      if (canAddMore) {
+        html += `
           <button 
             type="button"
             onclick="addNewGroupPrompt()" 
@@ -523,12 +636,23 @@
           >
             ＋
           </button>
-        ` : ''}
-      `;
+        `;
+      }
+
+      container.innerHTML = html;
     }
 
+    // 切換選單顯示狀態
+    function toggleGroupMenu(event, index) {
+      event.stopPropagation();
+      openMenuIndex = openMenuIndex === index ? null : index;
+      renderGroupTabs();
+    }
+
+    // 切換選取群組
     function switchStudentGroup(groupName) {
       currentActiveGroup = groupName;
+      openMenuIndex = null;
       renderGroupTabs();
 
       if (supabaseClient) {
@@ -538,6 +662,59 @@
       }
     }
 
+    // 1. 重新命名群組
+    function renameGroup(index) {
+      const oldName = customGroups[index];
+      const newName = prompt('請輸入新的群組名稱：', oldName);
+      if (!newName) return;
+
+      const trimmedName = newName.trim();
+      if (!trimmedName) {
+        alert('群組名稱不能為空！');
+        return;
+      }
+
+      const allGroups = [...defaultGroups, ...customGroups.filter((_, i) => i !== index)];
+      if (allGroups.includes(trimmedName)) {
+        alert('已存在相同的群組名稱！');
+        return;
+      }
+
+      customGroups[index] = trimmedName;
+      if (currentActiveGroup === oldName) {
+        currentActiveGroup = trimmedName;
+      }
+      localStorage.setItem('custom_student_groups', JSON.stringify(customGroups));
+      openMenuIndex = null;
+      renderGroupTabs();
+    }
+
+    // 2. 刪除群組 (二次確認)
+    function confirmDeleteGroup(index) {
+      const groupName = customGroups[index];
+      const isConfirmed = confirm(`是否確認刪除「${groupName}」這個群組？`);
+
+      if (isConfirmed) {
+        customGroups.splice(index, 1);
+        localStorage.setItem('custom_student_groups', JSON.stringify(customGroups));
+
+        // 如果當前正在該群組，自動切換回預設的「執行中」
+        if (currentActiveGroup === groupName) {
+          currentActiveGroup = '執行中';
+        }
+
+        openMenuIndex = null;
+        renderGroupTabs();
+
+        if (supabaseClient) {
+          supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (session) loadStudents(session.access_token);
+          });
+        }
+      }
+    }
+
+    // 新增自訂群組
     function addNewGroupPrompt() {
       if (customGroups.length >= 3) {
         alert('自訂群組已達 3 個上限！');
@@ -563,6 +740,7 @@
       customGroups.push(trimmedName);
       localStorage.setItem('custom_student_groups', JSON.stringify(customGroups));
       currentActiveGroup = trimmedName;
+      openMenuIndex = null;
       renderGroupTabs();
     }
 
