@@ -7,8 +7,10 @@
   <title>健管系統 | 全方位管理與查詢</title>
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- 🌟 引入 Modal 彈窗樣式 -->
+  <!-- Modal 彈窗樣式 -->
   <link rel="stylesheet" href="/modal.css">
+  <!-- 🌟 引入群組選單 CSS 樣式 -->
+  <link rel="stylesheet" href="/groupMenu.css">
   <style>
     :root {
       --bg-color: #f5f5f7;
@@ -83,6 +85,7 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
       margin-bottom: 24px;
       transition: all 0.3s ease;
+      position: relative;
     }
 
     h1 {
@@ -220,47 +223,6 @@
       align-items: center;
       margin-bottom: 24px;
     }
-
-    /* 群組選單彈窗選單樣式 */
-    .group-dropdown {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      margin-top: 6px;
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      padding: 6px;
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      min-width: 110px;
-    }
-
-    .group-dropdown button {
-      background: transparent;
-      border: none;
-      padding: 8px 12px;
-      font-size: 12px;
-      text-align: left;
-      cursor: pointer;
-      border-radius: 8px;
-      color: var(--text-main);
-      transition: background 0.15s ease;
-    }
-
-    .group-dropdown button:hover {
-      background: #f2f2f7;
-    }
-
-    .group-dropdown button.danger {
-      color: #ff3b30;
-    }
-
-    .group-dropdown button.danger:hover {
-      background: #ffe5e5;
-    }
   </style>
 </head>
 
@@ -380,8 +342,7 @@
             <h2 style="font-size: 18px; margin: 0;">您的學員清單</h2>
 
             <!-- 群組切換列 (預設 + 自訂選單) -->
-            <div id="group-tabs-container"
-              style="display: flex; align-items: center; gap: 6px; overflow-x: auto; max-width: 100%; padding-bottom: 4px;">
+            <div id="group-tabs-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <!-- 動態渲染群組按鈕 -->
             </div>
           </div>
@@ -467,7 +428,7 @@
     const defaultGroups = ['執行中', '已結業'];
     let customGroups = JSON.parse(localStorage.getItem('custom_student_groups') || '[]');
     let currentActiveGroup = '執行中';
-    let openMenuIndex = null; // 控制目前打開的選單索引
+    let openMenuIndex = null; // 當前打開的 CSS 選單索引
 
     // 動態初始化 Supabase
     async function initApp() {
@@ -490,11 +451,13 @@
       initApp();
       renderGroupTabs();
 
-      // 點擊頁面其他地方時，自動關閉選單
+      // 點擊頁面其他空白處時自動閉合 CSS 選單
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.group-tab-wrapper')) {
-          openMenuIndex = null;
-          renderGroupTabs();
+          if (openMenuIndex !== null) {
+            openMenuIndex = null;
+            renderGroupTabs();
+          }
         }
       });
     });
@@ -523,17 +486,16 @@
     }
 
     // ------------------------------------------
-    // 📌 學員群組標籤與三條線選單邏輯
+    // 📌 學員群組標籤與 CSS 動態選單
     // ------------------------------------------
     function renderGroupTabs() {
       const container = document.getElementById('group-tabs-container');
       if (!container) return;
 
       const canAddMore = customGroups.length < 3;
-
       let html = '';
 
-      // 1. 渲染預設群組
+      // 1. 預設群組 (執行中, 已結業)
       defaultGroups.forEach(group => {
         const isActive = currentActiveGroup === group;
         html += `
@@ -558,64 +520,44 @@
         `;
       });
 
-      // 2. 渲染可管理的自訂群組 (帶有 ≡ 選單)
+      // 2. 自訂群組 (搭配 CSS 下拉選單)
       customGroups.forEach((group, idx) => {
         const isActive = currentActiveGroup === group;
         const isMenuOpen = openMenuIndex === idx;
 
         html += `
-          <div class="group-tab-wrapper" style="position: relative; display: inline-flex; align-items: center;">
-            <div style="
-              display: flex;
-              align-items: center;
-              padding: 3px 6px 3px 12px;
-              border-radius: 980px;
-              border: 1px solid ${isActive ? 'var(--primary-color)' : 'rgba(0,0,0,0.15)'};
-              background: ${isActive ? 'var(--primary-color)' : 'transparent'};
-              color: ${isActive ? '#ffffff' : 'var(--text-main)'};
-              transition: all 0.2s ease;
-            ">
+          <div class="group-tab-wrapper">
+            <div class="group-tab-pill ${isActive ? 'active' : 'inactive'}">
               <span 
                 onclick="switchStudentGroup('${group}')" 
-                style="font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; margin-right: 4px;"
+                style="font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap;"
               >
                 ${group}
               </span>
 
-              <!-- 三條橫線 ≡ 選單按鈕 -->
               <button 
                 type="button"
+                class="group-menu-btn"
                 onclick="toggleGroupMenu(event, ${idx})" 
+                style="color: ${isActive ? '#ffffff' : 'var(--text-sub)'};"
                 title="群組選項"
-                style="
-                  background: transparent;
-                  border: none;
-                  color: ${isActive ? '#ffffff' : 'var(--text-sub)'};
-                  cursor: pointer;
-                  font-size: 12px;
-                  padding: 2px 4px;
-                  border-radius: 4px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                "
               >
                 ≡
               </button>
             </div>
 
-            <!-- 選單浮窗 (點三條橫線出現) -->
+            <!-- CSS 動態浮動下拉選單 -->
             ${isMenuOpen ? `
-              <div class="group-dropdown">
-                <button type="button" onclick="renameGroup(${idx})">1. 重新命名</button>
-                <button type="button" class="danger" onclick="confirmDeleteGroup(${idx})">2. 刪除該群組</button>
+              <div class="group-dropdown-menu">
+                <button type="button" class="group-dropdown-item" onclick="renameGroup(${idx})">1. 重新命名</button>
+                <button type="button" class="group-dropdown-item danger" onclick="confirmDeleteGroup(${idx})">2. 刪除該群組</button>
               </div>
             ` : ''}
           </div>
         `;
       });
 
-      // 3. 渲染 ＋ 新增按鈕
+      // 3. ＋ 新增按鈕
       if (canAddMore) {
         html += `
           <button 
@@ -642,14 +584,14 @@
       container.innerHTML = html;
     }
 
-    // 切換選單顯示狀態
+    // 開啟/關閉選單
     function toggleGroupMenu(event, index) {
       event.stopPropagation();
       openMenuIndex = openMenuIndex === index ? null : index;
       renderGroupTabs();
     }
 
-    // 切換選取群組
+    // 切換當前選取的群組
     function switchStudentGroup(groupName) {
       currentActiveGroup = groupName;
       openMenuIndex = null;
@@ -689,7 +631,7 @@
       renderGroupTabs();
     }
 
-    // 2. 刪除群組 (二次確認)
+    // 2. 刪除群組 (二次確認視窗)
     function confirmDeleteGroup(index) {
       const groupName = customGroups[index];
       const isConfirmed = confirm(`是否確認刪除「${groupName}」這個群組？`);
@@ -698,7 +640,6 @@
         customGroups.splice(index, 1);
         localStorage.setItem('custom_student_groups', JSON.stringify(customGroups));
 
-        // 如果當前正在該群組，自動切換回預設的「執行中」
         if (currentActiveGroup === groupName) {
           currentActiveGroup = '執行中';
         }
