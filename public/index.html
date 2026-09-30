@@ -332,9 +332,19 @@
           </form>
         </div>
 
-        <!-- 學員列表卡片 -->
+        <!-- 學員列表卡片 (包含預設與自訂群組按鈕) -->
         <div class="apple-card">
-          <h2 style="font-size: 18px; margin-bottom: 16px;">您的學員清單</h2>
+          <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+            <h2 style="font-size: 18px; margin: 0;">您的學員清單</h2>
+
+            <!-- 群組切換列 (預設 + 自訂) -->
+            <div id="group-tabs-container"
+              style="display: flex; align-items: center; gap: 6px; overflow-x: auto; max-width: 100%; padding-bottom: 4px;">
+              <!-- 動態渲染群組按鈕 -->
+            </div>
+          </div>
+
           <div id="student-list">
             <p style="color: var(--text-sub); font-size: 14px;">資料載入中...</p>
           </div>
@@ -412,6 +422,11 @@
     let currentStudentId = null;
     let currentNotesCache = [];
 
+    // 📌 群組控制變數 (預設「執行中」、「已結業」，至多 3 個自訂群組)
+    const defaultGroups = ['執行中', '已結業'];
+    let customGroups = JSON.parse(localStorage.getItem('custom_student_groups') || '[]');
+    let currentActiveGroup = '執行中';
+
     // 動態初始化 Supabase
     async function initApp() {
       try {
@@ -429,7 +444,10 @@
       }
     }
 
-    window.addEventListener('DOMContentLoaded', initApp);
+    window.addEventListener('DOMContentLoaded', () => {
+      initApp();
+      renderGroupTabs();
+    });
 
     // 頁籤切換邏輯
     function switchTab(tabId, btnElement) {
@@ -452,6 +470,100 @@
       } else {
         customGroup.classList.add('hidden');
       }
+    }
+
+    // ------------------------------------------
+    // 📌 學員群組標籤與新增邏輯
+    // ------------------------------------------
+    function renderGroupTabs() {
+      const container = document.getElementById('group-tabs-container');
+      if (!container) return;
+
+      const allGroups = [...defaultGroups, ...customGroups];
+      const canAddMore = customGroups.length < 3;
+
+      container.innerHTML = `
+        ${allGroups.map(group => `
+          <button 
+            type="button"
+            onclick="switchStudentGroup('${group}')" 
+            style="
+              padding: 5px 12px; 
+              border-radius: 980px; 
+              font-size: 12px; 
+              font-weight: 500; 
+              cursor: pointer; 
+              white-space: nowrap;
+              border: 1px solid ${currentActiveGroup === group ? 'var(--primary-color)' : 'rgba(0,0,0,0.15)'};
+              background: ${currentActiveGroup === group ? 'var(--primary-color)' : 'transparent'};
+              color: ${currentActiveGroup === group ? '#ffffff' : 'var(--text-main)'};
+              transition: all 0.2s ease;
+            "
+          >
+            ${group}
+          </button>
+        `).join('')}
+
+        ${canAddMore ? `
+          <button 
+            type="button"
+            onclick="addNewGroupPrompt()" 
+            title="新增群組 (最多3個)"
+            style="
+              padding: 4px 10px; 
+              border-radius: 980px; 
+              font-size: 13px; 
+              font-weight: 600; 
+              cursor: pointer; 
+              border: 1px solid rgba(0,0,0,0.15);
+              background: #f2f2f7;
+              color: var(--primary-color);
+              transition: all 0.2s ease;
+            "
+          >
+            ＋
+          </button>
+        ` : ''}
+      `;
+    }
+
+    function switchStudentGroup(groupName) {
+      currentActiveGroup = groupName;
+      renderGroupTabs();
+
+      if (supabaseClient) {
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+          if (session) loadStudents(session.access_token);
+        });
+      }
+    }
+
+    function addNewGroupPrompt() {
+      if (customGroups.length >= 3) {
+        alert('自訂群組已達 3 個上限！');
+        return;
+      }
+
+      const inputName = prompt('請輸入新群組名稱：');
+      if (!inputName) return;
+
+      const trimmedName = inputName.trim();
+
+      if (!trimmedName) {
+        alert('群組名稱不能為空！');
+        return;
+      }
+
+      const allGroups = [...defaultGroups, ...customGroups];
+      if (allGroups.includes(trimmedName)) {
+        alert('已存在相同的群組名稱！');
+        return;
+      }
+
+      customGroups.push(trimmedName);
+      localStorage.setItem('custom_student_groups', JSON.stringify(customGroups));
+      currentActiveGroup = trimmedName;
+      renderGroupTabs();
     }
 
     // 1. 日程查詢 Form 提交
@@ -524,7 +636,7 @@
       loadStudents(session.access_token);
     }
 
-    // 🌟 學員卡片綁定 openNotesModal
+    // 🌟 學員卡片載入
     async function loadStudents(token) {
       try {
         const response = await fetch('/api/students', {
@@ -546,7 +658,7 @@
             </div>
           `).join('');
         } else {
-          listContainer.innerHTML = '<p style="color: var(--text-sub); font-size: 14px;">目前尚無學員資料，請新增學員。</p>';
+          listContainer.innerHTML = `<p style="color: var(--text-sub); font-size: 14px;">目前「${currentActiveGroup}」標籤下尚無學員資料。</p>`;
         }
       } catch (err) {
         console.error(err);
