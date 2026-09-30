@@ -31,7 +31,20 @@ const sanitize = (str) => (str ? str.replace(/[^\x00-\x7F]/g, '').trim() : '');
 const supabaseUrl = sanitize(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL);
 const supabaseKey = sanitize(process.env.SUPABASE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_SECRET_KEY);
 
+// 全域基礎 Client (用於未帶入使用者 Session 的公開存取或 Token 驗證)
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// 🔒 資安最佳實踐 (方案 A)：動態建立附帶該教練 Bearer Token 的 Supabase Client
+// 這能確保要求傳抵 Supabase 時，能正確匹配 RLS 政策中的 auth.uid() = coach_id
+const getAuthenticatedSupabase = (token) => {
+  return createClient(supabaseUrl, supabaseKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  });
+};
 
 // JWT Bearer Token 驗證 Middleware (確保教練已登入)
 const verifyToken = async (req, res, next) => {
@@ -48,6 +61,7 @@ const verifyToken = async (req, res, next) => {
   }
 
   req.user = user;
+  req.token = token; // 🌟 儲存 Token 供資料庫層級轉發，以符合 RLS 權限
   next();
 };
 
@@ -75,9 +89,10 @@ app.get('/api/todos', async (req, res) => {
 // 1. 取得指定學員的歷史備註 (越早紀錄由上而下排序)
 app.get('/api/students/:studentId/notes', verifyToken, async (req, res) => {
   const { studentId } = req.params;
+  const authenticatedSupabase = getAuthenticatedSupabase(req.token); // 🌟 帶入教練 Token
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await authenticatedSupabase
       .from('student_notes')
       .select('*')
       .eq('student_id', studentId)
@@ -99,6 +114,7 @@ app.post('/api/students/:studentId/notes', verifyToken, upload.array('photos', 5
   const { studentId } = req.params;
   const { noteId, recordDate, weekNumber, content } = req.body;
   const coachId = req.user.id; // 從驗證成功的教練 JWT 取得 User ID
+  const authenticatedSupabase = getAuthenticatedSupabase(req.token); // 🌟 帶入教練 Token
 
   try {
     let photoUrls = [];
@@ -109,7 +125,7 @@ app.post('/api/students/:studentId/notes', verifyToken, upload.array('photos', 5
         // 建立防撞檔名的公開儲存路徑：教練ID/學員ID/時間戳記_檔名
         const fileName = `${coachId}/${studentId}/${Date.now()}_${file.originalname}`;
         
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await authenticatedSupabase.storage
           .from('student-photos')
           .upload(fileName, file.buffer, { contentType: file.mimetype });
 
@@ -119,7 +135,7 @@ app.post('/api/students/:studentId/notes', verifyToken, upload.array('photos', 5
         }
 
         // 取得圖片的 Public URL 網址
-        const { data: publicUrlData } = supabase.storage
+        const { data: publicUrlData } = authenticatedSupabase.storage
           .from('student-photos')
           .getPublicUrl(fileName);
 
@@ -143,7 +159,7 @@ app.post('/api/students/:studentId/notes', verifyToken, upload.array('photos', 5
         updateData.photo_urls = photoUrls;
       }
 
-      result = await supabase
+      result = await authenticatedSupabase
         .from('student_notes')
         .update(updateData)
         .eq('id', noteId)
@@ -151,7 +167,7 @@ app.post('/api/students/:studentId/notes', verifyToken, upload.array('photos', 5
         .select();
     } else {
       // 情況 B：新增一筆紀錄
-      result = await supabase
+      result = await authenticatedSupabase
         .from('student_notes')
         .insert([{
           student_id: studentId,
