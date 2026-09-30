@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>健管系統 | 全方位管理與查詢</title>
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 🌟 引入 Modal 彈窗樣式 -->
+  <link rel="stylesheet" href="/modal.css">
   <style>
     :root {
       --bg-color: #f5f5f7;
@@ -109,7 +112,9 @@
       font-weight: 500;
     }
 
-    input, select {
+    input,
+    select,
+    textarea {
       width: 100%;
       padding: 12px 16px;
       border-radius: 12px;
@@ -120,7 +125,9 @@
       transition: border-color 0.2s ease;
     }
 
-    input:focus, select:focus {
+    input:focus,
+    select:focus,
+    textarea:focus {
       border-color: var(--primary-color);
     }
 
@@ -215,10 +222,11 @@
     }
   </style>
 </head>
+
 <body>
 
   <div class="container">
-    
+
     <!-- 頂部切換頁籤 (Segmented Control) -->
     <div class="tab-bar">
       <button class="tab-btn active" onclick="switchTab('schedule-view', this)">45天日程查詢</button>
@@ -234,7 +242,6 @@
         <form id="search-form">
           <div class="form-group">
             <label>查詢密碼</label>
-            <!-- 已清空 value 並加上 autocomplete="new-password" 防範瀏覽器自動帶入 -->
             <input type="password" id="password" placeholder="請輸入查詢密碼" autocomplete="new-password" required>
           </div>
 
@@ -272,18 +279,22 @@
 
     <!-- ================= 頁籤 2: 教練管理後台 ================= -->
     <div id="coach-view" class="hidden">
-      
+
       <!-- 2-1. 未登入：顯示登入卡片 -->
       <div id="login-section" class="apple-card" style="text-align: center;">
         <h1>教練專屬後台</h1>
         <p class="subtitle">請使用授權的 Google 帳號登入系統</p>
-        
+
         <button class="btn-apple" onclick="loginWithGoogle()">
           <svg width="18" height="18" viewBox="0 0 24 24">
-            <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-            <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            <path fill="#ffffff"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+            <path fill="#ffffff"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#ffffff"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+            <path fill="#ffffff"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
           </svg>
           使用 Google 帳號登入
         </button>
@@ -291,13 +302,14 @@
 
       <!-- 2-2. 已登入：顯示管理主控台 -->
       <div id="dashboard-section" class="hidden">
-        
+
         <div class="apple-card header-bar">
           <div>
             <h1 style="text-align: left; font-size: 22px;">教練管理主控台</h1>
             <div id="user-email" style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">已登入</div>
           </div>
-          <button class="btn-apple btn-outline" style="width: auto; margin: 0; padding: 8px 16px; font-size: 13px;" onclick="logout()">登出</button>
+          <button class="btn-apple btn-outline" style="width: auto; margin: 0; padding: 8px 16px; font-size: 13px;"
+            onclick="logout()">登出</button>
         </div>
 
         <!-- 新增學員卡片 -->
@@ -334,15 +346,78 @@
 
   </div>
 
+  <!-- ================= 🌟 歷史備註管理 Modal 彈窗骨架 ================= -->
+  <div id="notes-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 id="modal-student-name" style="font-size: 20px; font-weight: 600;">學員備註紀錄</h2>
+        <button onclick="closeNotesModal()"
+          style="background:none; border:none; font-size: 22px; cursor:pointer; color: var(--text-sub);">✕</button>
+      </div>
+
+      <!-- 歷史備註列表 (依時間越早由上而下排序) -->
+      <div id="notes-list" style="max-height: 280px; overflow-y: auto; margin-bottom: 16px;"></div>
+
+      <!-- 新增紀錄按鈕 (點擊後才跳出輸入框) -->
+      <button id="btn-show-add-form" class="btn-apple" onclick="showNoteForm()">＋ 新增備註紀錄</button>
+
+      <!-- 備註輸入框 (預設隱藏) -->
+      <form id="note-form" class="hidden" style="margin-top: 16px; border-top: 1px solid #e5e5ea; padding-top: 16px;">
+        <h3 id="form-title" style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">新增紀錄</h3>
+        <input type="hidden" id="note-id">
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="display:block; font-size: 13px; font-weight: 600; margin-bottom: 4px;">1. 紀錄時間</label>
+          <input type="date" id="note-record-date" required
+            style="width:100%; padding:8px 12px; border-radius:10px; border:1px solid #d1d1d6;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="display:block; font-size: 13px; font-weight: 600; margin-bottom: 4px;">2. 第幾週</label>
+          <select id="note-week-number" required
+            style="width:100%; padding:8px 12px; border-radius:10px; border:1px solid #d1d1d6; background:#fff;">
+            <option value="第一週">第一週</option>
+            <option value="第二週">第二週</option>
+            <option value="第三週">第三週</option>
+            <option value="第四週">第四週</option>
+            <option value="第五週">第五週</option>
+            <option value="第六週">第六週</option>
+            <option value="第七週">第七週</option>
+            <option value="第八週">第八週</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display:block; font-size: 13px; font-weight: 600; margin-bottom: 4px;">3. 學員紀錄備註 (文字與照片)</label>
+          <textarea id="note-content" rows="3"
+            style="width:100%; border-radius:10px; padding:10px; border:1px solid #d1d1d6; box-sizing:border-box;"
+            placeholder="請輸入備註內容..."></textarea>
+          <div style="margin-top: 8px;">
+            <label style="font-size: 12px; color: var(--text-sub);">選擇照片 (可單圖或多圖上傳)：</label>
+            <input type="file" id="note-photos" accept="image/*" multiple
+              style="margin-top: 4px; display:block; font-size: 13px;">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" class="btn-apple" style="flex:1;">儲存紀錄</button>
+          <button type="button" class="btn-apple btn-outline" style="flex:1;" onclick="hideNoteForm()">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     let supabaseClient;
+    let currentStudentId = null;
+    let currentNotesCache = [];
 
     // 動態初始化 Supabase
     async function initApp() {
       try {
         const configRes = await fetch('/api/config');
         const config = await configRes.json();
-        
+
         supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -449,6 +524,7 @@
       loadStudents(session.access_token);
     }
 
+    // 🌟 學員卡片綁定 openNotesModal
     async function loadStudents(token) {
       try {
         const response = await fetch('/api/students', {
@@ -466,7 +542,7 @@
                   身高: ${s.height || '未填'} cm | 開始日: ${s.start_date}
                 </div>
               </div>
-              <button class="btn-apple btn-outline" style="width: auto; padding: 6px 14px; font-size: 12px; margin:0;">管理</button>
+              <button class="btn-apple btn-outline" style="width: auto; padding: 6px 14px; font-size: 12px; margin:0;" onclick="openNotesModal('${s.id}', '${s.name}')">管理</button>
             </div>
           `).join('');
         } else {
@@ -506,6 +582,114 @@
         alert('建立失敗：' + data.error);
       }
     });
+
+    // ==========================================
+    // 📌 歷史備註與圖片管理 Modal 控制邏輯
+    // ==========================================
+
+    async function openNotesModal(studentId, studentName) {
+      currentStudentId = studentId;
+      document.getElementById('modal-student-name').innerText = `${studentName} - 歷史備註`;
+      document.getElementById('notes-modal').classList.remove('hidden');
+      hideNoteForm();
+      await fetchNotes();
+    }
+
+    function closeNotesModal() {
+      document.getElementById('notes-modal').classList.add('hidden');
+    }
+
+    async function fetchNotes() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const res = await fetch(`/api/students/${currentStudentId}/notes`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        currentNotesCache = data.notes;
+        const list = document.getElementById('notes-list');
+
+        if (data.notes.length === 0) {
+          list.innerHTML = '<p style="color: var(--text-sub); font-size: 13px; text-align:center; padding:12px;">尚無歷史備註紀錄。</p>';
+          return;
+        }
+
+        list.innerHTML = data.notes.map(n => `
+          <div class="note-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size: 14px; color:#1c1c1e;">${n.record_date} (${n.week_number})</strong>
+              <button class="btn-apple btn-outline" style="width:auto; padding:2px 10px; font-size:11px;" onclick="editNote('${n.id}')">編輯</button>
+            </div>
+            <p style="font-size: 13px; color: #3a3a3c; margin-top: 6px; white-space: pre-line;">${n.content || '（無文字內容）'}</p>
+            ${n.photo_urls && n.photo_urls.length ? `
+              <div class="note-photos-grid">
+                ${n.photo_urls.map(url => `<a href="${url}" target="_blank"><img src="${url}" /></a>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    function showNoteForm() {
+      document.getElementById('note-form').reset();
+      document.getElementById('note-id').value = '';
+      document.getElementById('form-title').innerText = '新增紀錄';
+      document.getElementById('note-record-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('note-form').classList.remove('hidden');
+      document.getElementById('btn-show-add-form').classList.add('hidden');
+    }
+
+    function hideNoteForm() {
+      document.getElementById('note-form').classList.add('hidden');
+      document.getElementById('btn-show-add-form').classList.remove('hidden');
+    }
+
+    function editNote(noteId) {
+      const note = currentNotesCache.find(n => n.id === noteId);
+      if (!note) return;
+
+      document.getElementById('note-id').value = note.id;
+      document.getElementById('note-record-date').value = note.record_date;
+      document.getElementById('note-week-number').value = note.week_number;
+      document.getElementById('note-content').value = note.content || '';
+      document.getElementById('form-title').innerText = '編輯單週紀錄';
+
+      document.getElementById('note-form').classList.remove('hidden');
+      document.getElementById('btn-show-add-form').classList.add('hidden');
+    }
+
+    document.getElementById('note-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const { data: { session } } = await supabaseClient.auth.getSession();
+
+      const formData = new FormData();
+      formData.append('noteId', document.getElementById('note-id').value);
+      formData.append('recordDate', document.getElementById('note-record-date').value);
+      formData.append('weekNumber', document.getElementById('note-week-number').value);
+      formData.append('content', document.getElementById('note-content').value);
+
+      const fileInput = document.getElementById('note-photos');
+      for (let i = 0; i < fileInput.files.length; i++) {
+        formData.append('photos', fileInput.files[i]);
+      }
+
+      const res = await fetch(`/api/students/${currentStudentId}/notes`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        hideNoteForm();
+        await fetchNotes();
+      } else {
+        alert('儲存失敗：' + data.error);
+      }
+    });
   </script>
 </body>
+
 </html>

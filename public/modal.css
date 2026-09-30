@@ -1,0 +1,61 @@
+/* Modal 背景遮罩 (支援 iOS Safari 毛玻璃效果) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Modal 內容主體 */
+.modal-content {
+  width: 90%;
+  max-width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #ffffff;
+  padding: 28px;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+}
+
+/* 歷史備註單卡片 */
+.note-card {
+  background: #f9f9fb;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border: 1px solid #e5e5ea;
+  transition: all 0.2s ease;
+}
+
+/* 照片網格牆 */
+.note-photos-grid {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+/* 照片微縮圖 (加入點擊手勢與 Hover 效果) */
+.note-photos-grid img {
+  width: 68px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #d1d1d6;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.note-photos-grid img:hover {
+  transform: scale(1.05);
+}
